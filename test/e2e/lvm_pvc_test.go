@@ -93,7 +93,7 @@ func pvcTestsForMode(volumeMode k8sv1.PersistentVolumeMode) {
 	snapshotPVC := generatePVCFromSnapshot(volumeMode, snapshot)
 	snapshotPod := generatePodConsumingPVC(snapshotPVC)
 
-	AfterAll(parallelDelete([]client.Object{
+	AfterAll(DeleteResources([]client.Object{
 		snapshotPod, snapshotPVC, snapshot,
 		clonePod, clonePVC,
 		pod, pvc,
@@ -156,7 +156,7 @@ func ephemeralPVCTestsForMode(volumeMode k8sv1.PersistentVolumeMode) {
 	snapshotPVC := generatePVCFromSnapshot(volumeMode, snapshot)
 	snapshotPod := generatePodConsumingPVC(snapshotPVC)
 
-	AfterAll(parallelDelete([]client.Object{
+	AfterAll(DeleteResources([]client.Object{
 		snapshotPod, snapshotPVC, snapshot,
 		clonePod, clonePVC,
 		pod,
@@ -199,7 +199,7 @@ func generatePVCSpec(mode k8sv1.PersistentVolumeMode) k8sv1.PersistentVolumeClai
 		VolumeMode:  ptr.To(mode),
 		AccessModes: []k8sv1.PersistentVolumeAccessMode{k8sv1.ReadWriteOnce},
 		Resources: k8sv1.ResourceRequirements{Requests: map[k8sv1.ResourceName]resource.Quantity{
-			k8sv1.ResourceStorage: *resource.NewScaledQuantity(1, resource.Giga),
+			k8sv1.ResourceStorage: resource.MustParse("1Gi"),
 		}},
 		StorageClassName: ptr.To(storageClassName),
 	}

@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -206,18 +205,11 @@ func createNamespace(ctx context.Context, namespace string) error {
 	return nil
 }
 
-func parallelDelete(objs []client.Object) func(ctx SpecContext) {
+func DeleteResources(objs []client.Object) func(ctx SpecContext) {
 	GinkgoHelper()
 	return func(ctx SpecContext) {
-		wg := sync.WaitGroup{}
 		for _, obj := range objs {
-			wg.Add(1)
-			go func(ctx context.Context, obj client.Object) {
-				defer wg.Done()
-				defer GinkgoRecover()
-				DeleteResource(ctx, obj)
-			}(ctx, obj)
+			DeleteResource(ctx, obj)
 		}
-		wg.Wait()
 	}
 }
