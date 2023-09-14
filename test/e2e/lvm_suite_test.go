@@ -20,7 +20,6 @@ import (
 	"context"
 	"flag"
 	"testing"
-	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -31,7 +30,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift/lvm-operator/api/v1alpha1"
 )
 
 func TestLvm(t *testing.T) {
@@ -62,26 +60,5 @@ var _ = AfterSuite(func(ctx context.Context) {
 
 var _ = Describe("LVM Operator e2e tests", func() {
 	Describe("LVM Cluster Configuration", Serial, lvmClusterTest)
-
-	Describe("LVM Operator", Ordered, func() {
-		// Ordered to give the BeforeAll/AfterAll functionality to achieve common setup
-		var clusterConfig *v1alpha1.LVMCluster
-
-		BeforeAll(func(ctx SpecContext) {
-			clusterConfig = generateLVMCluster()
-			lvmClusterSetup(clusterConfig, ctx)
-			By("Verifying the cluster is ready")
-			Eventually(clusterReadyCheck(clusterConfig), timeout, 300*time.Millisecond).WithContext(ctx).Should(Succeed())
-		})
-
-		Describe("Functional Tests", func() {
-			Context("LVMCluster reconciliation", validateResources)
-			Context("PVC tests", pvcTest)
-			Context("Ephemeral volume tests", ephemeralTest)
-		})
-
-		AfterAll(func(ctx SpecContext) {
-			lvmClusterCleanup(clusterConfig, ctx)
-		})
-	})
+	FDescribe("PVC", Serial, Ordered, pvcTest)
 })

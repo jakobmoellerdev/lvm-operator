@@ -21,8 +21,8 @@ import (
 type ContentMode string
 
 const (
-	ContentModeFile  = "file"
-	ContentModeBlock = "block"
+	ContentModeFile  ContentMode = "file"
+	ContentModeBlock ContentMode = "block"
 )
 
 // PodRunner is a helper to run commands in pods via remote execution. similar to kubectl exec

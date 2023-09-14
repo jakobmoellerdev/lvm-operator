@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2"
 	v1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -292,51 +293,26 @@ func deployLVMWithOLM(ctx context.Context, lvmCatalogImage string, subscriptionC
 	return nil
 }
 
-// deleteClusterObjects deletes remaining operator manifests.
-func deleteClusterObjects(ctx context.Context, co *clusterObjects) error {
+// uninstallLVM uninstalls lvm operator.
+func uninstallLVM(ctx context.Context, lvmCatalogImage string, subscriptionChannel string) {
+	GinkgoHelper()
+
+	// Delete remaining operator manifests
+	co := generateClusterObjects(lvmCatalogImage, subscriptionChannel)
 
 	for _, operatorGroup := range co.operatorGroups {
-		operatorgroup := operatorGroup
-		err := crClient.Delete(ctx, &operatorgroup)
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-
+		DeleteResource(ctx, &operatorGroup)
 	}
 
 	for _, catalogSource := range co.catalogSources {
-		catalogsource := catalogSource
-		err := crClient.Delete(ctx, &catalogsource)
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
+		DeleteResource(ctx, &catalogSource)
 	}
 
 	for _, subscription := range co.subscriptions {
-		subs := subscription
-		err := crClient.Delete(ctx, &subs)
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
+		DeleteResource(ctx, &subscription)
 	}
 
-	return nil
-}
-
-// uninstallLVM uninstalls lvm operator.
-func uninstallLVM(ctx context.Context, lvmCatalogImage string, subscriptionChannel string) error {
-	// Delete remaining operator manifests
-	co := generateClusterObjects(lvmCatalogImage, subscriptionChannel)
-	err := deleteClusterObjects(ctx, co)
-	if err != nil {
-		return err
-	}
 	for _, namespace := range co.namespaces {
-		err = deleteNamespaceAndWait(ctx, namespace.Name)
-		if err != nil {
-			return err
-		}
+		DeleteResource(ctx, &namespace)
 	}
-
-	return nil
 }
