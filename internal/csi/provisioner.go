@@ -38,9 +38,10 @@ const (
 )
 
 type ProvisionerOptions struct {
-	DriverName          string
-	CSIEndpoint         string
-	CSIOperationTimeout time.Duration
+	SharedInformerFactory informers.SharedInformerFactory
+	DriverName            string
+	CSIEndpoint           string
+	CSIOperationTimeout   time.Duration
 }
 
 type Provisioner struct {
@@ -108,13 +109,12 @@ func (p *Provisioner) Start(ctx context.Context) error {
 	identity := strconv.FormatInt(timeStamp, 10) + "-" + strconv.Itoa(rand.Intn(10000)) + "-" + p.options.DriverName
 
 	translator := csitrans.New()
-	factory := informers.NewSharedInformerFactory(clientset, ResyncPeriodOfCsiNodeInformer)
 
-	scLister := factory.Storage().V1().StorageClasses().Lister()
-	csiNodeLister := factory.Storage().V1().CSINodes().Lister()
-	nodeLister := factory.Core().V1().Nodes().Lister()
-	claimLister := factory.Core().V1().PersistentVolumeClaims().Lister()
-	vaLister := factory.Storage().V1().VolumeAttachments().Lister()
+	scLister := p.options.SharedInformerFactory.Storage().V1().StorageClasses().Lister()
+	csiNodeLister := p.options.SharedInformerFactory.Storage().V1().CSINodes().Lister()
+	nodeLister := p.options.SharedInformerFactory.Core().V1().Nodes().Lister()
+	claimLister := p.options.SharedInformerFactory.Core().V1().PersistentVolumeClaims().Lister()
+	vaLister := p.options.SharedInformerFactory.Storage().V1().VolumeAttachments().Lister()
 	provisioner := provisionctrl.NewCSIProvisioner(
 		clientset,
 		p.options.CSIOperationTimeout,
@@ -167,8 +167,8 @@ func (p *Provisioner) Start(ctx context.Context) error {
 	topologyInformer := topology.NewNodeTopology(
 		p.options.DriverName,
 		clientset,
-		factory.Core().V1().Nodes(),
-		factory.Storage().V1().CSINodes(),
+		p.options.SharedInformerFactory.Core().V1().Nodes(),
+		p.options.SharedInformerFactory.Storage().V1().CSINodes(),
 		workqueue.NewRateLimitingQueueWithConfig(rateLimiter, workqueue.RateLimitingQueueConfig{
 			Name: "csitopology",
 		}),
@@ -203,7 +203,7 @@ func (p *Provisioner) Start(ctx context.Context) error {
 		managedByID,
 		namespace,
 		topologyInformer,
-		factory.Storage().V1().StorageClasses(),
+		p.options.SharedInformerFactory.Storage().V1().StorageClasses(),
 		cInformer,
 		time.Minute,
 		false,
@@ -216,7 +216,7 @@ func (p *Provisioner) Start(ctx context.Context) error {
 	claimQueue := workqueue.NewRateLimitingQueueWithConfig(claimRateLimiter, workqueue.RateLimitingQueueConfig{
 		Name: "claims",
 	})
-	claimInformer := factory.Core().V1().PersistentVolumeClaims().Informer()
+	claimInformer := p.options.SharedInformerFactory.Core().V1().PersistentVolumeClaims().Informer()
 
 	provisionController := controller.NewProvisionController(
 		clientset,
@@ -241,17 +241,7 @@ func (p *Provisioner) Start(ctx context.Context) error {
 		controllerCapabilities,
 	)
 
-	factory.Start(ctx.Done())
-	// Starting is enough, the capacity controller will
-	// wait for sync.
 	factoryForNamespace.Start(ctx.Done())
-	cacheSyncResult := factory.WaitForCacheSync(ctx.Done())
-	for _, v := range cacheSyncResult {
-		if !v {
-			return fmt.Errorf("failed to sync Informers")
-		}
-	}
-
 	var wg sync.WaitGroup
 	wg.Add(3)
 

@@ -10,7 +10,6 @@ import (
 	informers "github.com/kubernetes-csi/external-snapshotter/client/v6/informers/externalversions"
 	controller "github.com/kubernetes-csi/external-snapshotter/v6/pkg/sidecar-controller"
 	"github.com/kubernetes-csi/external-snapshotter/v6/pkg/snapshotter"
-	coreinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
@@ -73,7 +72,6 @@ func (s *Snapshotter) Start(ctx context.Context) error {
 		return err
 	}
 	factory := informers.NewSharedInformerFactory(snapClient, ResyncPeriodOfSnapshotInformer)
-	coreFactory := coreinformers.NewSharedInformerFactory(kubeClient, ResyncPeriodOfSnapshotInformer)
 	snapShotter := snapshotter.NewSnapshotter(grpcClient)
 
 	rateLimiter := workqueue.NewItemExponentialFailureRateLimiter(time.Second, 5*time.Minute)
@@ -101,7 +99,6 @@ func (s *Snapshotter) Start(ctx context.Context) error {
 
 	// run...
 	factory.Start(ctx.Done())
-	coreFactory.Start(ctx.Done())
 	ctrl.Run(1, ctx.Done())
 
 	return nil

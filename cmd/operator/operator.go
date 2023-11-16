@@ -38,7 +38,10 @@ import (
 	topolvmcontrollers "github.com/topolvm/topolvm/controllers"
 	"github.com/topolvm/topolvm/driver"
 	"google.golang.org/grpc"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -187,7 +190,6 @@ func run(cmd *cobra.Command, _ []string, opts *Options) error {
 		LeaderElection:                !leaderElectionConfig.Disable,
 		LeaderElectionReleaseOnCancel: true,
 		GracefulShutdownTimeout:       ptr.To(time.Duration(-1)),
-		PprofBindAddress:              ":9099",
 	})
 	if err != nil {
 		return fmt.Errorf("unable to start manager: %w", err)
@@ -255,10 +257,34 @@ func run(cmd *cobra.Command, _ []string, opts *Options) error {
 		return err
 	}
 
+	clientset, err := kubernetes.NewForConfigAndClient(mgr.GetConfig(), mgr.GetHTTPClient())
+	if err != nil {
+		return err
+	}
+	factory := informers.NewSharedInformerFactory(clientset, 10*time.Hour)
+
+	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		factory.Start(ctx.Done())
+		// Starting is enough, the capacity controller will
+		// wait for sync.
+		cacheSyncResult := factory.WaitForCacheSync(ctx.Done())
+		for _, v := range cacheSyncResult {
+			if !v {
+				return fmt.Errorf("failed to sync Informers")
+			}
+		}
+		<-ctx.Done()
+		factory.Shutdown()
+		return nil
+	})); err != nil {
+		return err
+	}
+
 	if err := mgr.Add(internalCSI.NewProvisioner(mgr, internalCSI.ProvisionerOptions{
-		DriverName:          constants.TopolvmCSIDriverName,
-		CSIEndpoint:         constants.DefaultCSISocket,
-		CSIOperationTimeout: 10 * time.Second,
+		SharedInformerFactory: factory,
+		DriverName:            constants.TopolvmCSIDriverName,
+		CSIEndpoint:           constants.DefaultCSISocket,
+		CSIOperationTimeout:   10 * time.Second,
 	})); err != nil {
 		return fmt.Errorf("unable to create CSI Provisioner: %w", err)
 	}
@@ -273,10 +299,11 @@ func run(cmd *cobra.Command, _ []string, opts *Options) error {
 		}
 	}
 
-	if err := mgr.Add(internalCSI.NewResizer(mgr, internalCSI.ProvisionerOptions{
-		DriverName:          constants.TopolvmCSIDriverName,
-		CSIEndpoint:         constants.DefaultCSISocket,
-		CSIOperationTimeout: 10 * time.Second,
+	if err := mgr.Add(internalCSI.NewResizer(mgr, internalCSI.ResizerOptions{
+		SharedInformerFactory: factory,
+		DriverName:            constants.TopolvmCSIDriverName,
+		CSIEndpoint:           constants.DefaultCSISocket,
+		CSIOperationTimeout:   10 * time.Second,
 	})); err != nil {
 		return err
 	}
