@@ -61,7 +61,7 @@ metadata:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.ppc64le: supported
     operatorframework.io/arch.s390x: supported
-  name: @BUNDLE_PACKAGE@.v0.0.0
+  name: lvms-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}

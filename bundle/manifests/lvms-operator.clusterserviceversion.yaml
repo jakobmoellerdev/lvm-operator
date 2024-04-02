@@ -31,6 +31,16 @@ metadata:
     containerImage: quay.io/ocs-dev/lvm-operator:latest
     description: Logical volume manager storage provides dynamically provisioned local
       storage for container workloads
+    features.operators.openshift.io/cnf: "false"
+    features.operators.openshift.io/cni: "false"
+    features.operators.openshift.io/csi: "true"
+    features.operators.openshift.io/disconnected: "true"
+    features.operators.openshift.io/fips-compliant: "true"
+    features.operators.openshift.io/proxy-aware: "false"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
     olm.skipRange: ""
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/initialization-resource: |-
@@ -56,6 +66,17 @@ metadata:
           }
         }
     operatorframework.io/suggested-namespace: openshift-storage
+    operatorframework.io/suggested-namespace-template: |-
+      {
+        "apiVersion": "v1",
+        "kind": "Namespace",
+        "metadata": {
+          "name": "openshift-storage",
+          "annotations": {
+            "workload.openshift.io/allowed": "management"
+          }
+        }
+      }
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.openshift.io/valid-subscription: '["OpenShift Container Platform", "OpenShift
       Platform Plus"]'
@@ -302,7 +323,7 @@ spec:
                 - /manager
                 env:
                 - name: TOPOLVM_CSI_IMAGE
-                  value: quay.io/ocs-dev/topolvm:latest
+                  value: quay.io/jmoller/topolvm:devel
                 - name: CSI_LIVENESSPROBE_IMAGE
                   value: k8s.gcr.io/sig-storage/livenessprobe:v2.7.0
                 - name: CSI_PROVISIONER_IMAGE
@@ -321,7 +342,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/ocs-dev/lvms-operator:latest
+                image: quay.io/jmoller/lvms-operator:latest
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -363,7 +384,7 @@ spec:
                 resources: {}
               - command:
                 - /metricsexporter
-                image: quay.io/ocs-dev/lvms-operator:latest
+                image: quay.io/jmoller/lvms-operator:latest
                 name: metricsexporter
                 resources:
                   limits:
